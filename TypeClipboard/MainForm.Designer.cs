@@ -65,28 +65,28 @@ public partial class MainForm
         copyClipboardButton.Name = "copyClipboardButton";
         copyClipboardButton.Size = new Size(170, 32);
         copyClipboardButton.TabIndex = 1;
-        copyClipboardButton.Text = "Copy clipboard to textbox";
+        copyClipboardButton.Text = "Refresh clipboard";
         copyClipboardButton.UseVisualStyleBackColor = true;
         copyClipboardButton.Click += copyClipboardButton_Click;
         // 
         // typeButton
         // 
-        typeButton.Location = new Point(302, 181);
+        typeButton.Location = new Point(242, 181);
         typeButton.Name = "typeButton";
-        typeButton.Size = new Size(80, 32);
+        typeButton.Size = new Size(110, 32);
         typeButton.TabIndex = 2;
-        typeButton.Text = "Type";
+        typeButton.Text = "Type (Ctrl+T)";
         typeButton.UseVisualStyleBackColor = true;
         typeButton.Click += typeButton_Click;
         // 
         // stopButton
         // 
         stopButton.Enabled = false;
-        stopButton.Location = new Point(392, 181);
+        stopButton.Location = new Point(362, 181);
         stopButton.Name = "stopButton";
-        stopButton.Size = new Size(80, 32);
+        stopButton.Size = new Size(110, 32);
         stopButton.TabIndex = 3;
-        stopButton.Text = "Stop";
+        stopButton.Text = "Stop (Esc)";
         stopButton.UseVisualStyleBackColor = true;
         stopButton.Click += stopButton_Click;
         // 

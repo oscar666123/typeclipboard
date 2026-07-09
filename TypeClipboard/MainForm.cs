@@ -6,6 +6,7 @@ namespace TypeClipboard;
 public partial class MainForm : Form
 {
     private const int WmHotKey = 0x0312;
+    private const int WmClipboardUpdate = 0x031D;
 
     private readonly HotKeyOption[] _hotKeyOptions =
     [
@@ -15,7 +16,9 @@ public partial class MainForm : Form
     ];
 
     private HotKeyManager? _hotKeyManager;
+    private System.Windows.Forms.Timer? _clipboardPollTimer;
     private CancellationTokenSource? _typingCancellation;
+    private string? _lastClipboardText;
     private bool _isTyping;
     private bool _isClosing;
 
@@ -46,7 +49,30 @@ public partial class MainForm : Form
             return;
         }
 
+        if (m.Msg == WmClipboardUpdate)
+        {
+            LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
+            return;
+        }
+
         base.WndProc(ref m);
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == (Keys.Control | Keys.T))
+        {
+            StartTypingFromShortcut();
+            return true;
+        }
+
+        if (keyData == Keys.Escape)
+        {
+            RequestStop("Stopped");
+            return true;
+        }
+
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     protected override void OnActivated(EventArgs e)
@@ -56,7 +82,10 @@ public partial class MainForm : Form
         if (IsTyping)
         {
             RequestStop("Stopped");
+            return;
         }
+
+        LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
     }
 
     private void MainForm_Load(object? sender, EventArgs e)
@@ -64,42 +93,83 @@ public partial class MainForm : Form
         _hotKeyManager = new HotKeyManager(Handle);
         hotKeyComboBox.Items.AddRange(_hotKeyOptions);
         hotKeyComboBox.SelectedIndex = 0;
-        UpdateCharacterCountStatus();
+        RegisterClipboardListener();
+        StartClipboardPolling();
+        LoadClipboardText("Auto loaded", forceReload: true, showErrors: true);
     }
 
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
         _isClosing = true;
         RequestStop("Stopped");
+        _clipboardPollTimer?.Stop();
+        _clipboardPollTimer?.Dispose();
+        RemoveClipboardFormatListener(Handle);
         _hotKeyManager?.Dispose();
     }
 
     private void copyClipboardButton_Click(object? sender, EventArgs e)
     {
-        try
-        {
-            if (!Clipboard.ContainsText())
-            {
-                clipboardTextBox.Clear();
-                SetIdleStatus("Clipboard is empty");
-                return;
-            }
-
-            clipboardTextBox.Text = Clipboard.GetText();
-            SetIdleStatus($"Loaded {clipboardTextBox.TextLength} characters");
-        }
-        catch (Exception ex) when (ex is ExternalException or ThreadStateException or InvalidOperationException)
-        {
-            SetIdleStatus($"Error: {ex.Message}");
-        }
+        LoadClipboardText("Loaded", forceReload: true, showErrors: true);
     }
 
-    private async void typeButton_Click(object? sender, EventArgs e)
+    private void LoadClipboardText(string successPrefix, bool forceReload, bool showErrors)
     {
         if (IsTyping)
         {
             return;
         }
+
+        try
+        {
+            if (!Clipboard.ContainsText())
+            {
+                _lastClipboardText = null;
+                if (showErrors)
+                {
+                    SetIdleStatus("Clipboard has no text");
+                }
+
+                return;
+            }
+
+            string clipboardText = Clipboard.GetText();
+            if (!forceReload && clipboardText == _lastClipboardText)
+            {
+                return;
+            }
+
+            _lastClipboardText = clipboardText;
+            clipboardTextBox.Text = clipboardText;
+            SetIdleStatus($"{successPrefix} {clipboardTextBox.TextLength} characters");
+        }
+        catch (Exception ex) when (ex is ExternalException or ThreadStateException or InvalidOperationException)
+        {
+            if (showErrors)
+            {
+                SetIdleStatus($"Error: {ex.Message}");
+            }
+        }
+    }
+
+    private async void typeButton_Click(object? sender, EventArgs e)
+    {
+        await StartTypingAsync();
+    }
+
+    private void StartTypingFromShortcut()
+    {
+        _ = StartTypingAsync();
+    }
+
+    private async Task StartTypingAsync()
+    {
+        if (IsTyping)
+        {
+            return;
+        }
+
+        LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
 
         string text = clipboardTextBox.Text;
         if (text.Length == 0)
@@ -263,6 +333,24 @@ public partial class MainForm : Form
         }
     }
 
+    private void RegisterClipboardListener()
+    {
+        if (!AddClipboardFormatListener(Handle))
+        {
+            SetIdleStatus("Clipboard auto-load unavailable");
+        }
+    }
+
+    private void StartClipboardPolling()
+    {
+        _clipboardPollTimer = new System.Windows.Forms.Timer
+        {
+            Interval = 500
+        };
+        _clipboardPollTimer.Tick += (_, _) => LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
+        _clipboardPollTimer.Start();
+    }
+
     private void RequestStop(string status)
     {
         if (!IsTyping)
@@ -286,4 +374,10 @@ public partial class MainForm : Form
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool AddClipboardFormatListener(IntPtr hwnd);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RemoveClipboardFormatListener(IntPtr hwnd);
 }

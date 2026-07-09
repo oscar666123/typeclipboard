@@ -7,6 +7,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 ## Features
 
 - Loads Windows clipboard text into an editable preview box.
+- Automatically refreshes the preview when the Windows clipboard changes.
 - Types text one character at a time with `SendInput`.
 - Uses Unicode input for normal characters.
 - Converts line breaks to real Enter key presses.
@@ -15,6 +16,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 - Responsive async typing loop with cancellation.
 - Emergency stop by button or global hotkey.
 - Hotkey choices: F8, Ctrl+Alt+F8, Pause/Break.
+- Window shortcuts: Ctrl+T starts typing, Esc stops typing.
 
 ## Installation
 
@@ -34,17 +36,16 @@ It also creates Start Menu and Desktop shortcuts.
 ## Usage
 
 1. Copy text on the local PC.
-2. Open **Type Clipboard**.
-3. Click **Copy clipboard to textbox**.
-4. Click **Type**.
-5. Focus the target RDP, server, or app window before the start delay ends.
-6. Press the selected emergency hotkey or click **Stop** to interrupt.
+2. Open **Type Clipboard**. The preview updates automatically.
+3. Click **Type** or press **Ctrl+T**.
+4. Focus the target RDP, server, or app window before the start delay ends.
+5. Press the selected emergency hotkey, press **Esc** while the app is focused, or click **Stop** to interrupt.
 
 ## Controls
 
-- **Copy clipboard to textbox**: reads text from the Windows clipboard.
-- **Type**: starts typing into the active window after the start delay.
-- **Stop**: requests immediate cancellation.
+- **Refresh clipboard**: manually reloads text from the Windows clipboard.
+- **Type (Ctrl+T)**: starts typing into the active window after the start delay.
+- **Stop (Esc)**: requests immediate cancellation.
 - **Type Enter**: sends Enter after all text is typed.
 - **F8 hotkey**: enables the selected global emergency hotkey.
 - **Emergency hotkey**: selects F8, Ctrl+Alt+F8, or Pause/Break.
