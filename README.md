@@ -8,6 +8,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 
 - Loads Windows clipboard text into an editable preview box.
 - Automatically refreshes the preview when the Windows clipboard changes.
+- Clears the preview when the clipboard no longer contains text.
 - Types text one character at a time with `SendInput`.
 - Uses Unicode input for normal characters.
 - Converts line breaks to real Enter key presses.
@@ -17,6 +18,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 - Emergency stop by button or global hotkey.
 - Hotkey choices: F8, Ctrl+Alt+F8, Pause/Break.
 - Window shortcuts: Ctrl+T starts typing, Esc stops typing.
+- Locks each typing run to the foreground target selected after the start delay and stops if focus moves to another window.
 
 ## Installation
 
@@ -67,8 +69,11 @@ Publish a self-contained Windows x64 build:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\build-release.ps1
 ```
 
+The script reads the default version from the project file. To build a specific numeric version, add `-Version 0.2.2`; the ZIP name and EXE metadata use the same value.
+
 ## Known Runtime Boundaries
 
 - Apps running as administrator may require Type Clipboard to run with the same integrity level.
 - Some remote consoles and specialized apps may handle synthetic input differently.
 - Stop cancellation is checked before each character and after each delay. A key event already sent to Windows cannot be recalled.
+- The foreground target is captured after the start delay. Changing to another local window stops the run.

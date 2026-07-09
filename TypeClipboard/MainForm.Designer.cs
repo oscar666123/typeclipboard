@@ -111,7 +111,7 @@ public partial class MainForm
         hotKeyEnabledCheckBox.Name = "hotKeyEnabledCheckBox";
         hotKeyEnabledCheckBox.Size = new Size(80, 19);
         hotKeyEnabledCheckBox.TabIndex = 5;
-        hotKeyEnabledCheckBox.Text = "F8 hotkey";
+        hotKeyEnabledCheckBox.Text = "Hotkey enabled";
         hotKeyEnabledCheckBox.UseVisualStyleBackColor = true;
         hotKeyEnabledCheckBox.CheckedChanged += hotKeyEnabledCheckBox_CheckedChanged;
         // 

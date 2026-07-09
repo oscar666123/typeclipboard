@@ -19,6 +19,8 @@ public partial class MainForm : Form
     private System.Windows.Forms.Timer? _clipboardPollTimer;
     private CancellationTokenSource? _typingCancellation;
     private string? _lastClipboardText;
+    private string? _hotKeyWarning;
+    private bool? _lastClipboardContainedText;
     private bool _isTyping;
     private bool _isClosing;
 
@@ -36,7 +38,7 @@ public partial class MainForm : Form
             typeButton.Enabled = !value;
             stopButton.Enabled = value;
             copyClipboardButton.Enabled = !value;
-            hotKeyComboBox.Enabled = !value && hotKeyEnabledCheckBox.Checked;
+            hotKeyComboBox.Enabled = !value;
             hotKeyEnabledCheckBox.Enabled = !value;
         }
     }
@@ -124,8 +126,16 @@ public partial class MainForm : Form
         {
             if (!Clipboard.ContainsText())
             {
+                bool clipboardStateChanged = _lastClipboardContainedText != false;
+                _lastClipboardContainedText = false;
                 _lastClipboardText = null;
-                if (showErrors)
+
+                if (forceReload || clipboardStateChanged)
+                {
+                    clipboardTextBox.Clear();
+                }
+
+                if (showErrors || clipboardStateChanged)
                 {
                     SetIdleStatus("Clipboard has no text");
                 }
@@ -134,6 +144,7 @@ public partial class MainForm : Form
             }
 
             string clipboardText = Clipboard.GetText();
+            _lastClipboardContainedText = true;
             if (!forceReload && clipboardText == _lastClipboardText)
             {
                 return;
@@ -191,11 +202,12 @@ public partial class MainForm : Form
             int interkeyDelay = (int)interkeyDelayNumeric.Value;
 
             await DelayAndCheckCancellation(startDelay, token);
+            IntPtr targetWindow = CaptureTargetWindow();
 
             for (int index = 0; index < text.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
-                ThrowIfThisAppIsForeground(token);
+                ThrowIfTargetWindowChanged(targetWindow);
 
                 char character = text[index];
                 if (character == '\r')
@@ -219,7 +231,7 @@ public partial class MainForm : Form
             }
 
             token.ThrowIfCancellationRequested();
-            ThrowIfThisAppIsForeground(token);
+            ThrowIfTargetWindowChanged(targetWindow);
             if (typeEnterCheckBox.Checked)
             {
                 InputSimulator.SendEnter();
@@ -232,6 +244,13 @@ public partial class MainForm : Form
             if (!_isClosing)
             {
                 SetIdleStatus("Stopped");
+            }
+        }
+        catch (TargetWindowChangedException ex)
+        {
+            if (!_isClosing)
+            {
+                SetIdleStatus(ex.Message);
             }
         }
         catch (Exception ex)
@@ -260,7 +279,7 @@ public partial class MainForm : Form
 
     private void hotKeyEnabledCheckBox_CheckedChanged(object? sender, EventArgs e)
     {
-        hotKeyComboBox.Enabled = hotKeyEnabledCheckBox.Checked && !IsTyping;
+        hotKeyComboBox.Enabled = !IsTyping;
 
         if (hotKeyEnabledCheckBox.Checked)
         {
@@ -269,6 +288,7 @@ public partial class MainForm : Form
         else
         {
             _hotKeyManager?.Unregister();
+            _hotKeyWarning = null;
             SetIdleStatus("Hotkey disabled");
         }
     }
@@ -297,15 +317,30 @@ public partial class MainForm : Form
         {
             await Task.Delay(millisecondsDelay, token);
         }
+        else
+        {
+            await Task.Yield();
+        }
 
         token.ThrowIfCancellationRequested();
     }
 
-    private void ThrowIfThisAppIsForeground(CancellationToken token)
+    private IntPtr CaptureTargetWindow()
     {
-        if (GetForegroundWindow() == Handle)
+        IntPtr targetWindow = GetForegroundWindow();
+        if (targetWindow == IntPtr.Zero || targetWindow == Handle)
         {
-            throw new OperationCanceledException(token);
+            throw new TargetWindowChangedException("Stopped: target window unavailable");
+        }
+
+        return targetWindow;
+    }
+
+    private static void ThrowIfTargetWindowChanged(IntPtr targetWindow)
+    {
+        if (GetForegroundWindow() != targetWindow)
+        {
+            throw new TargetWindowChangedException("Stopped: target window changed");
         }
     }
 
@@ -321,6 +356,7 @@ public partial class MainForm : Form
         try
         {
             _hotKeyManager.Register(option);
+            _hotKeyWarning = null;
             SetIdleStatus($"{option.DisplayName} hotkey registered");
         }
         catch (Win32Exception ex)
@@ -328,8 +364,9 @@ public partial class MainForm : Form
             hotKeyEnabledCheckBox.CheckedChanged -= hotKeyEnabledCheckBox_CheckedChanged;
             hotKeyEnabledCheckBox.Checked = false;
             hotKeyEnabledCheckBox.CheckedChanged += hotKeyEnabledCheckBox_CheckedChanged;
-            hotKeyComboBox.Enabled = false;
-            SetIdleStatus($"Hotkey unavailable: {option.DisplayName} ({ex.Message})");
+            hotKeyComboBox.Enabled = !IsTyping;
+            _hotKeyWarning = $"Hotkey unavailable: {option.DisplayName} ({ex.Message})";
+            SetIdleStatus("Select another emergency hotkey");
         }
     }
 
@@ -369,8 +406,12 @@ public partial class MainForm : Form
 
     private void SetIdleStatus(string status)
     {
-        statusLabel.Text = status;
+        statusLabel.Text = _hotKeyWarning is null
+            ? status
+            : $"{_hotKeyWarning} | {status}";
     }
+
+    private sealed class TargetWindowChangedException(string message) : Exception(message);
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
