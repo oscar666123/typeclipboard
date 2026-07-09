@@ -69,7 +69,7 @@ Publish a self-contained Windows x64 build:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\build-release.ps1
 ```
 
-The script reads the default version from the project file. To build a specific numeric version, add `-Version 0.2.2`; the ZIP name and EXE metadata use the same value.
+The script reads the default version from the project file. To build a specific numeric version, add `-Version 0.2.3`; the ZIP name and EXE metadata use the same value.
 
 ## Known Runtime Boundaries
 

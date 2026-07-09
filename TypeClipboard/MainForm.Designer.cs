@@ -118,10 +118,11 @@ public partial class MainForm
         // hotKeyComboBox
         // 
         hotKeyComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        hotKeyComboBox.DropDownWidth = 140;
         hotKeyComboBox.FormattingEnabled = true;
         hotKeyComboBox.Location = new Point(120, 264);
         hotKeyComboBox.Name = "hotKeyComboBox";
-        hotKeyComboBox.Size = new Size(140, 23);
+        hotKeyComboBox.Size = new Size(110, 23);
         hotKeyComboBox.TabIndex = 6;
         hotKeyComboBox.SelectedIndexChanged += hotKeyComboBox_SelectedIndexChanged;
         // 

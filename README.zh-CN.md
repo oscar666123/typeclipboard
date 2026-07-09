@@ -69,7 +69,7 @@ dotnet run --project .\TypeClipboard\TypeClipboard.csproj
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\build-release.ps1
 ```
 
-脚本默认从项目文件读取版本号。需要构建指定数字版本时，可添加 `-Version 0.2.2`；ZIP 文件名和 EXE 版本信息会使用同一个值。
+脚本默认从项目文件读取版本号。需要构建指定数字版本时，可添加 `-Version 0.2.3`；ZIP 文件名和 EXE 版本信息会使用同一个值。
 
 ## 已知运行边界
 
