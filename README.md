@@ -1,0 +1,84 @@
+# Type Clipboard
+
+Type Clipboard is a small Windows desktop app that simulates typing clipboard text into the currently focused window. It is useful when an RDP, server, remote console, or locked-down app blocks normal paste.
+
+[中文说明](README.zh-CN.md)
+
+## Features
+
+- Loads Windows clipboard text into an editable preview box.
+- Types text one character at a time with `SendInput`.
+- Uses Unicode input for normal characters.
+- Converts line breaks to real Enter key presses.
+- Optional final Enter after typing.
+- Configurable start delay and interkey delay.
+- Responsive async typing loop with cancellation.
+- Emergency stop by button or global hotkey.
+- Hotkey choices: F8, Ctrl+Alt+F8, Pause/Break.
+
+## Installation
+
+Download the latest release from GitHub and choose one package:
+
+- `TypeClipboard-Setup-vX.Y.Z.exe`: current-user installer.
+- `TypeClipboard-Portable-vX.Y.Z.zip`: portable build.
+
+The installer places the app under:
+
+```text
+%LOCALAPPDATA%\Programs\Type Clipboard
+```
+
+It also creates Start Menu and Desktop shortcuts.
+
+## Usage
+
+1. Copy text on the local PC.
+2. Open **Type Clipboard**.
+3. Click **Copy clipboard to textbox**.
+4. Click **Type**.
+5. Focus the target RDP, server, or app window before the start delay ends.
+6. Press the selected emergency hotkey or click **Stop** to interrupt.
+
+## Controls
+
+- **Copy clipboard to textbox**: reads text from the Windows clipboard.
+- **Type**: starts typing into the active window after the start delay.
+- **Stop**: requests immediate cancellation.
+- **Type Enter**: sends Enter after all text is typed.
+- **F8 hotkey**: enables the selected global emergency hotkey.
+- **Emergency hotkey**: selects F8, Ctrl+Alt+F8, or Pause/Break.
+- **Start delay (ms)**: time to switch focus to the target window.
+- **Interkey delay (ms)**: delay after each typed character or line break.
+
+## Build From Source
+
+Requirements:
+
+- Windows
+- .NET 8 SDK or newer stable .NET SDK
+- Visual Studio 2022 or `dotnet` CLI
+
+Build:
+
+```powershell
+dotnet build .\TypeClipboard.sln
+```
+
+Run:
+
+```powershell
+dotnet run --project .\TypeClipboard\TypeClipboard.csproj
+```
+
+Publish a self-contained Windows x64 build:
+
+```powershell
+dotnet publish .\TypeClipboard\TypeClipboard.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+## Known Runtime Boundaries
+
+- Apps running as administrator may require Type Clipboard to run with the same integrity level.
+- Some remote consoles and specialized apps may handle synthetic input differently.
+- Stop cancellation is checked before each character and after each delay. A key event already sent to Windows cannot be recalled.

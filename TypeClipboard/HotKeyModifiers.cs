@@ -1,0 +1,13 @@
+using System;
+
+namespace TypeClipboard;
+
+[Flags]
+internal enum HotKeyModifiers : uint
+{
+    None = 0x0000,
+    Alt = 0x0001,
+    Control = 0x0002,
+    Shift = 0x0004,
+    Windows = 0x0008
+}
