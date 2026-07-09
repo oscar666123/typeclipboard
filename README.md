@@ -20,18 +20,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 
 ## Installation
 
-Download the latest release from GitHub and choose one package:
-
-- `TypeClipboard-Setup-vX.Y.Z.exe`: current-user installer.
-- `TypeClipboard-Portable-vX.Y.Z.zip`: portable build.
-
-The installer places the app under:
-
-```text
-%LOCALAPPDATA%\Programs\Type Clipboard
-```
-
-It also creates Start Menu and Desktop shortcuts.
+Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, extract it, and run `TypeClipboard.exe`.
 
 ## Usage
 
@@ -75,7 +64,7 @@ dotnet run --project .\TypeClipboard\TypeClipboard.csproj
 Publish a self-contained Windows x64 build:
 
 ```powershell
-dotnet publish .\TypeClipboard\TypeClipboard.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\build-release.ps1
 ```
 
 ## Known Runtime Boundaries
