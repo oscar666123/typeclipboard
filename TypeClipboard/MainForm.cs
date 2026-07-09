@@ -15,12 +15,32 @@ public partial class MainForm : Form
         new("Pause/Break", HotKeyModifiers.None, Keys.Pause)
     ];
 
+    private readonly ShortcutOption[] _typeShortcutOptions =
+    [
+        new("ctrl-t", "Ctrl+T", Keys.Control | Keys.T),
+        new("ctrl-shift-t", "Ctrl+Shift+T", Keys.Control | Keys.Shift | Keys.T),
+        new("ctrl-alt-t", "Ctrl+Alt+T", Keys.Control | Keys.Alt | Keys.T),
+        new("f9", "F9", Keys.F9),
+        new("disabled", "Disabled", Keys.None)
+    ];
+
+    private readonly ShortcutOption[] _stopShortcutOptions =
+    [
+        new("escape", "Esc", Keys.Escape),
+        new("ctrl-shift-s", "Ctrl+Shift+S", Keys.Control | Keys.Shift | Keys.S),
+        new("ctrl-alt-s", "Ctrl+Alt+S", Keys.Control | Keys.Alt | Keys.S),
+        new("f10", "F10", Keys.F10),
+        new("disabled", "Disabled", Keys.None)
+    ];
+
     private HotKeyManager? _hotKeyManager;
     private System.Windows.Forms.Timer? _clipboardPollTimer;
     private CancellationTokenSource? _typingCancellation;
+    private AppSettings _settings = new();
     private string? _lastClipboardText;
     private string? _hotKeyWarning;
     private bool? _lastClipboardContainedText;
+    private bool _isInitializingShortcuts;
     private bool _isTyping;
     private bool _isClosing;
 
@@ -40,6 +60,8 @@ public partial class MainForm : Form
             copyClipboardButton.Enabled = !value;
             hotKeyComboBox.Enabled = !value;
             hotKeyEnabledCheckBox.Enabled = !value;
+            typeShortcutComboBox.Enabled = !value;
+            stopShortcutComboBox.Enabled = !value;
         }
     }
 
@@ -62,13 +84,13 @@ public partial class MainForm : Form
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        if (keyData == (Keys.Control | Keys.T))
+        if (!IsTyping && MatchesShortcut(typeShortcutComboBox, keyData))
         {
             StartTypingFromShortcut();
             return true;
         }
 
-        if (keyData == Keys.Escape)
+        if (IsTyping && MatchesShortcut(stopShortcutComboBox, keyData))
         {
             RequestStop("Stopped");
             return true;
@@ -92,6 +114,7 @@ public partial class MainForm : Form
 
     private void MainForm_Load(object? sender, EventArgs e)
     {
+        InitializeShortcutSelectors();
         _hotKeyManager = new HotKeyManager(Handle);
         hotKeyComboBox.Items.AddRange(_hotKeyOptions);
         hotKeyComboBox.SelectedIndex = 0;
@@ -301,12 +324,79 @@ public partial class MainForm : Form
         }
     }
 
+    private void shortcutComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isInitializingShortcuts ||
+            typeShortcutComboBox.SelectedItem is not ShortcutOption typeShortcut ||
+            stopShortcutComboBox.SelectedItem is not ShortcutOption stopShortcut)
+        {
+            return;
+        }
+
+        _settings.TypeShortcutId = typeShortcut.Id;
+        _settings.StopShortcutId = stopShortcut.Id;
+        SaveSettings("Shortcuts updated");
+    }
+
+    private void alwaysOnTopCheckBox_CheckedChanged(object? sender, EventArgs e)
+    {
+        TopMost = alwaysOnTopCheckBox.Checked;
+
+        if (_isInitializingShortcuts)
+        {
+            return;
+        }
+
+        _settings.AlwaysOnTop = alwaysOnTopCheckBox.Checked;
+        SaveSettings(alwaysOnTopCheckBox.Checked ? "Always on top enabled" : "Always on top disabled");
+    }
+
+    private void SaveSettings(string successStatus)
+    {
+        try
+        {
+            _settings.Save();
+            SetIdleStatus(successStatus);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SetIdleStatus($"Error saving shortcuts: {ex.Message}");
+        }
+    }
+
     private void clipboardTextBox_TextChanged(object? sender, EventArgs e)
     {
         if (!IsTyping)
         {
             UpdateCharacterCountStatus();
         }
+    }
+
+    private void InitializeShortcutSelectors()
+    {
+        _settings = AppSettings.Load();
+        _isInitializingShortcuts = true;
+
+        alwaysOnTopCheckBox.Checked = _settings.AlwaysOnTop;
+        TopMost = _settings.AlwaysOnTop;
+        typeShortcutComboBox.Items.AddRange(_typeShortcutOptions);
+        stopShortcutComboBox.Items.AddRange(_stopShortcutOptions);
+        typeShortcutComboBox.SelectedItem = FindShortcut(_typeShortcutOptions, _settings.TypeShortcutId);
+        stopShortcutComboBox.SelectedItem = FindShortcut(_stopShortcutOptions, _settings.StopShortcutId);
+
+        _isInitializingShortcuts = false;
+    }
+
+    private static ShortcutOption FindShortcut(ShortcutOption[] options, string selectedId)
+    {
+        return options.FirstOrDefault(option => option.Id == selectedId) ?? options[0];
+    }
+
+    private static bool MatchesShortcut(ComboBox comboBox, Keys keyData)
+    {
+        return comboBox.SelectedItem is ShortcutOption option &&
+               option.IsEnabled &&
+               keyData == option.KeyData;
     }
 
     private static async Task DelayAndCheckCancellation(int millisecondsDelay, CancellationToken token)
