@@ -17,7 +17,7 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 - Responsive async typing loop with cancellation.
 - Emergency stop by button or global hotkey.
 - Hotkey choices: F8, Ctrl+Alt+F8, Pause/Break.
-- Configurable window shortcuts for Type and Stop, saved per Windows user.
+- Configurable Type and Stop shortcuts, including global options that work while another window is focused.
 - Optional always-on-top mode, enabled by default.
 - Locks each typing run to the foreground target selected after the start delay and stops if focus moves to another window.
 
@@ -29,9 +29,9 @@ Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, ext
 
 1. Copy text on the local PC.
 2. Open **Type Clipboard**. The preview updates automatically.
-3. Click **Type** or press the selected Type shortcut.
+3. Click **Type**, or focus the target window and press a global Type shortcut such as F9.
 4. Focus the target RDP, server, or app window before the start delay ends.
-5. Press the selected emergency hotkey, use the selected Stop shortcut while the app is focused, or click **Stop** to interrupt.
+5. Press the selected emergency hotkey, use the selected Stop shortcut, or click **Stop** to interrupt. Global Stop options work while the target window is focused.
 
 ## Controls
 
@@ -43,8 +43,8 @@ Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, ext
 - **Emergency hotkey**: selects F8, Ctrl+Alt+F8, or Pause/Break.
 - **Start delay (ms)**: time to switch focus to the target window.
 - **Interkey delay (ms)**: delay after each typed character or line break.
-- **Type shortcut**: selects Ctrl+T, Ctrl+Shift+T, Ctrl+Alt+T, F9, or Disabled.
-- **Stop shortcut**: selects Esc, Ctrl+Shift+S, Ctrl+Alt+S, F10, or Disabled.
+- **Type shortcut**: selects local Ctrl+T, global Ctrl+Shift+T, global Ctrl+Alt+T, global F9, or Disabled.
+- **Stop shortcut**: selects local Esc, global Ctrl+Shift+S, global Ctrl+Alt+S, global F10, or Disabled.
 - **Always on top**: keeps Type Clipboard above other windows while preserving normal minimization.
 
 Shortcut and always-on-top selections are stored in `%LOCALAPPDATA%\TypeClipboard\settings.json`.
@@ -75,7 +75,7 @@ Publish a self-contained Windows x64 build:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\packaging\build-release.ps1
 ```
 
-The script reads the default version from the project file. To build a specific numeric version, add `-Version 0.2.4`; the ZIP name and EXE metadata use the same value.
+The script reads the default version from the project file. To build a specific numeric version, add `-Version 0.2.5`; the ZIP name and EXE metadata use the same value.
 
 ## Known Runtime Boundaries
 
@@ -83,3 +83,4 @@ The script reads the default version from the project file. To build a specific 
 - Some remote consoles and specialized apps may handle synthetic input differently.
 - Stop cancellation is checked before each character and after each delay. A key event already sent to Windows cannot be recalled.
 - The foreground target is captured after the start delay. Changing to another local window stops the run.
+- A global shortcut may be unavailable when another app already registered it; Type Clipboard reports this in the status bar.

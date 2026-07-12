@@ -7,6 +7,9 @@ public partial class MainForm : Form
 {
     private const int WmHotKey = 0x0312;
     private const int WmClipboardUpdate = 0x031D;
+    private const int EmergencyHotKeyId = 0x5401;
+    private const int TypeShortcutHotKeyId = 0x5402;
+    private const int StopShortcutHotKeyId = 0x5403;
 
     private readonly HotKeyOption[] _hotKeyOptions =
     [
@@ -17,28 +20,32 @@ public partial class MainForm : Form
 
     private readonly ShortcutOption[] _typeShortcutOptions =
     [
-        new("ctrl-t", "Ctrl+T", Keys.Control | Keys.T),
-        new("ctrl-shift-t", "Ctrl+Shift+T", Keys.Control | Keys.Shift | Keys.T),
-        new("ctrl-alt-t", "Ctrl+Alt+T", Keys.Control | Keys.Alt | Keys.T),
-        new("f9", "F9", Keys.F9),
-        new("disabled", "Disabled", Keys.None)
+        new("ctrl-t", "Ctrl+T local", Keys.Control | Keys.T, IsGlobal: false),
+        new("ctrl-shift-t", "Ctrl+Shift+T", Keys.Control | Keys.Shift | Keys.T, IsGlobal: true),
+        new("ctrl-alt-t", "Ctrl+Alt+T", Keys.Control | Keys.Alt | Keys.T, IsGlobal: true),
+        new("f9", "F9", Keys.F9, IsGlobal: true),
+        new("disabled", "Disabled", Keys.None, IsGlobal: false)
     ];
 
     private readonly ShortcutOption[] _stopShortcutOptions =
     [
-        new("escape", "Esc", Keys.Escape),
-        new("ctrl-shift-s", "Ctrl+Shift+S", Keys.Control | Keys.Shift | Keys.S),
-        new("ctrl-alt-s", "Ctrl+Alt+S", Keys.Control | Keys.Alt | Keys.S),
-        new("f10", "F10", Keys.F10),
-        new("disabled", "Disabled", Keys.None)
+        new("escape", "Esc local", Keys.Escape, IsGlobal: false),
+        new("ctrl-shift-s", "Ctrl+Shift+S", Keys.Control | Keys.Shift | Keys.S, IsGlobal: true),
+        new("ctrl-alt-s", "Ctrl+Alt+S", Keys.Control | Keys.Alt | Keys.S, IsGlobal: true),
+        new("f10", "F10", Keys.F10, IsGlobal: true),
+        new("disabled", "Disabled", Keys.None, IsGlobal: false)
     ];
 
-    private HotKeyManager? _hotKeyManager;
+    private HotKeyManager? _emergencyHotKeyManager;
+    private HotKeyManager? _typeShortcutHotKeyManager;
+    private HotKeyManager? _stopShortcutHotKeyManager;
     private System.Windows.Forms.Timer? _clipboardPollTimer;
     private CancellationTokenSource? _typingCancellation;
     private AppSettings _settings = new();
     private string? _lastClipboardText;
     private string? _hotKeyWarning;
+    private string? _typeShortcutWarning;
+    private string? _stopShortcutWarning;
     private bool? _lastClipboardContainedText;
     private bool _isInitializingShortcuts;
     private bool _isTyping;
@@ -69,8 +76,18 @@ public partial class MainForm : Form
     {
         if (m.Msg == WmHotKey)
         {
-            RequestStop("Stopped");
-            return;
+            int hotKeyId = m.WParam.ToInt32();
+            if (hotKeyId == TypeShortcutHotKeyId)
+            {
+                StartTypingFromShortcut();
+                return;
+            }
+
+            if (hotKeyId is EmergencyHotKeyId or StopShortcutHotKeyId)
+            {
+                RequestStop("Stopped");
+                return;
+            }
         }
 
         if (m.Msg == WmClipboardUpdate)
@@ -114,8 +131,11 @@ public partial class MainForm : Form
 
     private void MainForm_Load(object? sender, EventArgs e)
     {
+        _emergencyHotKeyManager = new HotKeyManager(Handle, EmergencyHotKeyId);
+        _typeShortcutHotKeyManager = new HotKeyManager(Handle, TypeShortcutHotKeyId);
+        _stopShortcutHotKeyManager = new HotKeyManager(Handle, StopShortcutHotKeyId);
         InitializeShortcutSelectors();
-        _hotKeyManager = new HotKeyManager(Handle);
+        RegisterSelectedShortcutHotKeys();
         hotKeyComboBox.Items.AddRange(_hotKeyOptions);
         hotKeyComboBox.SelectedIndex = 0;
         RegisterClipboardListener();
@@ -130,7 +150,9 @@ public partial class MainForm : Form
         _clipboardPollTimer?.Stop();
         _clipboardPollTimer?.Dispose();
         RemoveClipboardFormatListener(Handle);
-        _hotKeyManager?.Dispose();
+        _emergencyHotKeyManager?.Dispose();
+        _typeShortcutHotKeyManager?.Dispose();
+        _stopShortcutHotKeyManager?.Dispose();
     }
 
     private void copyClipboardButton_Click(object? sender, EventArgs e)
@@ -310,7 +332,7 @@ public partial class MainForm : Form
         }
         else
         {
-            _hotKeyManager?.Unregister();
+            _emergencyHotKeyManager?.Unregister();
             _hotKeyWarning = null;
             SetIdleStatus("Hotkey disabled");
         }
@@ -335,6 +357,7 @@ public partial class MainForm : Form
 
         _settings.TypeShortcutId = typeShortcut.Id;
         _settings.StopShortcutId = stopShortcut.Id;
+        RegisterSelectedShortcutHotKeys();
         SaveSettings("Shortcuts updated");
     }
 
@@ -399,6 +422,44 @@ public partial class MainForm : Form
                keyData == option.KeyData;
     }
 
+    private void RegisterSelectedShortcutHotKeys()
+    {
+        _typeShortcutWarning = RegisterShortcutHotKey(
+            typeShortcutComboBox,
+            _typeShortcutHotKeyManager,
+            "Type");
+        _stopShortcutWarning = RegisterShortcutHotKey(
+            stopShortcutComboBox,
+            _stopShortcutHotKeyManager,
+            "Stop");
+    }
+
+    private static string? RegisterShortcutHotKey(
+        ComboBox comboBox,
+        HotKeyManager? manager,
+        string actionName)
+    {
+        manager?.Unregister();
+
+        if (manager is null ||
+            comboBox.SelectedItem is not ShortcutOption option ||
+            !option.IsEnabled ||
+            !option.IsGlobal)
+        {
+            return null;
+        }
+
+        try
+        {
+            manager.Register(option);
+            return null;
+        }
+        catch (Win32Exception ex)
+        {
+            return $"{actionName} global shortcut unavailable: {option.DisplayName} ({ex.Message})";
+        }
+    }
+
     private static async Task DelayAndCheckCancellation(int millisecondsDelay, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -437,7 +498,7 @@ public partial class MainForm : Form
     private void RegisterSelectedHotKey()
     {
         if (!hotKeyEnabledCheckBox.Checked ||
-            _hotKeyManager is null ||
+            _emergencyHotKeyManager is null ||
             hotKeyComboBox.SelectedItem is not HotKeyOption option)
         {
             return;
@@ -445,7 +506,7 @@ public partial class MainForm : Form
 
         try
         {
-            _hotKeyManager.Register(option);
+            _emergencyHotKeyManager.Register(option);
             _hotKeyWarning = null;
             SetIdleStatus($"{option.DisplayName} hotkey registered");
         }
@@ -496,9 +557,13 @@ public partial class MainForm : Form
 
     private void SetIdleStatus(string status)
     {
-        statusLabel.Text = _hotKeyWarning is null
+        string[] warnings = new string?[] { _hotKeyWarning, _typeShortcutWarning, _stopShortcutWarning }
+            .Where(warning => !string.IsNullOrWhiteSpace(warning))
+            .Select(warning => warning!)
+            .ToArray();
+        statusLabel.Text = warnings.Length == 0
             ? status
-            : $"{_hotKeyWarning} | {status}";
+            : $"{string.Join(" | ", warnings)} | {status}";
     }
 
     private sealed class TargetWindowChangedException(string message) : Exception(message);
