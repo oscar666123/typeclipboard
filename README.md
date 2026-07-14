@@ -20,6 +20,11 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 - Configurable Type and Stop shortcuts, including global options that work while another window is focused.
 - Optional always-on-top mode, enabled by default.
 - Locks each typing run to the foreground target selected after the start delay and stops if focus moves to another window.
+- Saves text sent through the **Type** action to a local Type History with Started, Completed, Stopped, and Failed states.
+- Reuses exact duplicate history entries while updating their last-used time and use count.
+- Provides searchable history cards with load, type again, copy, pin, and delete actions.
+- Supports pausing history, disabling new history recording, and keeping pinned entries during normal clearing.
+- Limits unpinned history to a configurable 20–1000 entries; the default is 100.
 
 ## Installation
 
@@ -32,6 +37,7 @@ Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, ext
 3. Click **Type**, or focus the target window and press a global Type shortcut such as F9.
 4. Focus the target RDP, server, or app window before the start delay ends.
 5. Press the selected emergency hotkey, use the selected Stop shortcut, or click **Stop** to interrupt. Global Stop options work while the target window is focused.
+6. Open **Type History** or press Ctrl+H to reuse previously typed text.
 
 ## Controls
 
@@ -46,8 +52,24 @@ Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, ext
 - **Type shortcut**: selects local Ctrl+T, global Ctrl+Shift+T, global Ctrl+Alt+T, global F9, or Disabled.
 - **Stop shortcut**: selects local Esc, global Ctrl+Shift+S, global Ctrl+Alt+S, global F10, or Disabled.
 - **Always on top**: keeps Type Clipboard above other windows while preserving normal minimization.
+- **Type History**: opens or collapses the searchable history panel.
+- **Save Type History**: controls whether future Type actions are recorded.
+- **Pause History**: pauses recording for the current app session while keeping existing history available.
+- **Maximum history items**: sets the unpinned history limit from 20 to 1000.
 
-Shortcut and always-on-top selections are stored in `%LOCALAPPDATA%\TypeClipboard\settings.json`.
+History card actions include **Load to textbox**, **Type again**, **Copy to clipboard**, **Pin / Unpin**, and **Delete**. **Clear all** removes unpinned entries after confirmation. The panel menu can delete all history, including pinned entries, with a stronger confirmation.
+
+Keyboard navigation:
+
+- **Ctrl+H**: opens and focuses Type History.
+- **Enter**: loads the selected history item.
+- **Ctrl+Enter**: types the selected history item again.
+- **Delete**: asks to delete the selected history item.
+- **Escape**: collapses Type History.
+
+Shortcut, always-on-top, history enablement, and history limit settings are stored in `%LOCALAPPDATA%\TypeClipboard\settings.json`.
+
+Type History is stored in `%APPDATA%\TypeClipboard\type-history.json`. History recording uses only the app's **Type** action; clipboard auto-refresh does not create history entries. The history file contains typed text in plain JSON, so use **Pause History**, disable **Save Type History**, or delete sensitive entries when working with passwords, API keys, tokens, or private commands.
 
 ## Build From Source
 
@@ -84,3 +106,5 @@ The script reads the default version from the project file. To build a specific 
 - Stop cancellation is checked before each character and after each delay. A key event already sent to Windows cannot be recalled.
 - The foreground target is captured after the start delay. Changing to another local window stops the run.
 - A global shortcut may be unavailable when another app already registered it; Type Clipboard reports this in the status bar.
+- Pinned history entries are excluded from automatic limit cleanup and normal **Clear all** operations.
+- A corrupted history file is renamed to `type-history-corrupted-<timestamp>.json`, and the app continues with an empty history.

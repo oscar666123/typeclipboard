@@ -16,6 +16,10 @@ internal sealed class AppSettings
 
     public bool AlwaysOnTop { get; set; } = true;
 
+    public bool SaveTypeHistory { get; set; } = true;
+
+    public int MaximumHistoryItems { get; set; } = 100;
+
     public static AppSettings Load()
     {
         try
@@ -27,7 +31,9 @@ internal sealed class AppSettings
             }
 
             string json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            AppSettings settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            settings.MaximumHistoryItems = Math.Clamp(settings.MaximumHistoryItems, 20, 1000);
+            return settings;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
