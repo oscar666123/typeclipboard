@@ -17,31 +17,26 @@ internal sealed class HotKeyManager : IDisposable
 
     public bool IsRegistered => _registered;
 
-    public void Register(HotKeyOption option)
-    {
-        Register(option.Modifiers, option.Key, option.DisplayName);
-    }
-
-    public void Register(ShortcutOption option)
+    public void Register(Keys keyData, string displayName)
     {
         HotKeyModifiers modifiers = HotKeyModifiers.None;
-        if (option.KeyData.HasFlag(Keys.Control))
+        if (keyData.HasFlag(Keys.Control))
         {
             modifiers |= HotKeyModifiers.Control;
         }
 
-        if (option.KeyData.HasFlag(Keys.Alt))
+        if (keyData.HasFlag(Keys.Alt))
         {
             modifiers |= HotKeyModifiers.Alt;
         }
 
-        if (option.KeyData.HasFlag(Keys.Shift))
+        if (keyData.HasFlag(Keys.Shift))
         {
             modifiers |= HotKeyModifiers.Shift;
         }
 
-        Keys key = option.KeyData & Keys.KeyCode;
-        Register(modifiers, key, option.DisplayName);
+        Keys key = keyData & Keys.KeyCode;
+        Register(modifiers, key, displayName);
     }
 
     private void Register(HotKeyModifiers modifiers, Keys key, string displayName)

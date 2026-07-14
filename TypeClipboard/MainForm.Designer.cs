@@ -9,7 +9,7 @@ public partial class MainForm
     private Button stopButton = null!;
     private CheckBox typeEnterCheckBox = null!;
     private CheckBox hotKeyEnabledCheckBox = null!;
-    private ComboBox hotKeyComboBox = null!;
+    private Button emergencyShortcutButton = null!;
     private NumericUpDown startDelayNumeric = null!;
     private NumericUpDown interkeyDelayNumeric = null!;
     private Label startDelayLabel = null!;
@@ -17,8 +17,8 @@ public partial class MainForm
     private Label hotKeyLabel = null!;
     private Label typeShortcutLabel = null!;
     private Label stopShortcutLabel = null!;
-    private ComboBox typeShortcutComboBox = null!;
-    private ComboBox stopShortcutComboBox = null!;
+    private Button typeShortcutButton = null!;
+    private Button stopShortcutButton = null!;
     private CheckBox alwaysOnTopCheckBox = null!;
     private Label statusLabel = null!;
 
@@ -41,7 +41,7 @@ public partial class MainForm
         stopButton = new Button();
         typeEnterCheckBox = new CheckBox();
         hotKeyEnabledCheckBox = new CheckBox();
-        hotKeyComboBox = new ComboBox();
+        emergencyShortcutButton = new Button();
         startDelayNumeric = new NumericUpDown();
         interkeyDelayNumeric = new NumericUpDown();
         startDelayLabel = new Label();
@@ -49,8 +49,8 @@ public partial class MainForm
         hotKeyLabel = new Label();
         typeShortcutLabel = new Label();
         stopShortcutLabel = new Label();
-        typeShortcutComboBox = new ComboBox();
-        stopShortcutComboBox = new ComboBox();
+        typeShortcutButton = new Button();
+        stopShortcutButton = new Button();
         alwaysOnTopCheckBox = new CheckBox();
         statusLabel = new Label();
         ((System.ComponentModel.ISupportInitialize)startDelayNumeric).BeginInit();
@@ -119,22 +119,22 @@ public partial class MainForm
         hotKeyEnabledCheckBox.CheckState = CheckState.Checked;
         hotKeyEnabledCheckBox.Location = new Point(12, 266);
         hotKeyEnabledCheckBox.Name = "hotKeyEnabledCheckBox";
-        hotKeyEnabledCheckBox.Size = new Size(80, 19);
-        hotKeyEnabledCheckBox.TabIndex = 5;
-        hotKeyEnabledCheckBox.Text = "Hotkey enabled";
+        hotKeyEnabledCheckBox.Size = new Size(155, 19);
+        hotKeyEnabledCheckBox.TabIndex = 6;
+        hotKeyEnabledCheckBox.Text = "Emergency enabled";
         hotKeyEnabledCheckBox.UseVisualStyleBackColor = true;
         hotKeyEnabledCheckBox.CheckedChanged += hotKeyEnabledCheckBox_CheckedChanged;
         // 
-        // hotKeyComboBox
+        // emergencyShortcutButton
         // 
-        hotKeyComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        hotKeyComboBox.DropDownWidth = 140;
-        hotKeyComboBox.FormattingEnabled = true;
-        hotKeyComboBox.Location = new Point(120, 264);
-        hotKeyComboBox.Name = "hotKeyComboBox";
-        hotKeyComboBox.Size = new Size(110, 23);
-        hotKeyComboBox.TabIndex = 6;
-        hotKeyComboBox.SelectedIndexChanged += hotKeyComboBox_SelectedIndexChanged;
+        emergencyShortcutButton.AutoEllipsis = true;
+        emergencyShortcutButton.Location = new Point(352, 264);
+        emergencyShortcutButton.Name = "emergencyShortcutButton";
+        emergencyShortcutButton.Size = new Size(120, 23);
+        emergencyShortcutButton.TabIndex = 7;
+        emergencyShortcutButton.Text = "Change: F8";
+        emergencyShortcutButton.UseVisualStyleBackColor = true;
+        emergencyShortcutButton.Click += emergencyShortcutButton_Click;
         // 
         // startDelayNumeric
         // 
@@ -143,16 +143,16 @@ public partial class MainForm
         startDelayNumeric.Maximum = new decimal(new int[] { 60000, 0, 0, 0 });
         startDelayNumeric.Name = "startDelayNumeric";
         startDelayNumeric.Size = new Size(120, 23);
-        startDelayNumeric.TabIndex = 8;
+        startDelayNumeric.TabIndex = 5;
         startDelayNumeric.Value = new decimal(new int[] { 500, 0, 0, 0 });
         // 
         // interkeyDelayNumeric
         // 
-        interkeyDelayNumeric.Location = new Point(352, 264);
+        interkeyDelayNumeric.Location = new Point(352, 334);
         interkeyDelayNumeric.Maximum = new decimal(new int[] { 10000, 0, 0, 0 });
         interkeyDelayNumeric.Name = "interkeyDelayNumeric";
         interkeyDelayNumeric.Size = new Size(120, 23);
-        interkeyDelayNumeric.TabIndex = 10;
+        interkeyDelayNumeric.TabIndex = 11;
         interkeyDelayNumeric.Value = new decimal(new int[] { 10, 0, 0, 0 });
         // 
         // startDelayLabel
@@ -167,7 +167,7 @@ public partial class MainForm
         // interkeyDelayLabel
         // 
         interkeyDelayLabel.AutoSize = true;
-        interkeyDelayLabel.Location = new Point(241, 266);
+        interkeyDelayLabel.Location = new Point(241, 336);
         interkeyDelayLabel.Name = "interkeyDelayLabel";
         interkeyDelayLabel.Size = new Size(105, 15);
         interkeyDelayLabel.TabIndex = 9;
@@ -176,11 +176,11 @@ public partial class MainForm
         // hotKeyLabel
         // 
         hotKeyLabel.AutoSize = true;
-        hotKeyLabel.Location = new Point(120, 232);
+        hotKeyLabel.Location = new Point(241, 267);
         hotKeyLabel.Name = "hotKeyLabel";
         hotKeyLabel.Size = new Size(107, 15);
         hotKeyLabel.TabIndex = 11;
-        hotKeyLabel.Text = "Emergency hotkey";
+        hotKeyLabel.Text = "Emergency key";
         //
         // typeShortcutLabel
         //
@@ -200,27 +200,27 @@ public partial class MainForm
         stopShortcutLabel.TabIndex = 14;
         stopShortcutLabel.Text = "Stop shortcut";
         //
-        // typeShortcutComboBox
+        // typeShortcutButton
         //
-        typeShortcutComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        typeShortcutComboBox.DropDownWidth = 140;
-        typeShortcutComboBox.FormattingEnabled = true;
-        typeShortcutComboBox.Location = new Point(120, 299);
-        typeShortcutComboBox.Name = "typeShortcutComboBox";
-        typeShortcutComboBox.Size = new Size(110, 23);
-        typeShortcutComboBox.TabIndex = 13;
-        typeShortcutComboBox.SelectedIndexChanged += shortcutComboBox_SelectedIndexChanged;
+        typeShortcutButton.AutoEllipsis = true;
+        typeShortcutButton.Location = new Point(120, 299);
+        typeShortcutButton.Name = "typeShortcutButton";
+        typeShortcutButton.Size = new Size(110, 23);
+        typeShortcutButton.TabIndex = 8;
+        typeShortcutButton.Text = "Change: F9";
+        typeShortcutButton.UseVisualStyleBackColor = true;
+        typeShortcutButton.Click += typeShortcutButton_Click;
         //
-        // stopShortcutComboBox
+        // stopShortcutButton
         //
-        stopShortcutComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        stopShortcutComboBox.DropDownWidth = 140;
-        stopShortcutComboBox.FormattingEnabled = true;
-        stopShortcutComboBox.Location = new Point(352, 299);
-        stopShortcutComboBox.Name = "stopShortcutComboBox";
-        stopShortcutComboBox.Size = new Size(120, 23);
-        stopShortcutComboBox.TabIndex = 15;
-        stopShortcutComboBox.SelectedIndexChanged += shortcutComboBox_SelectedIndexChanged;
+        stopShortcutButton.AutoEllipsis = true;
+        stopShortcutButton.Location = new Point(352, 299);
+        stopShortcutButton.Name = "stopShortcutButton";
+        stopShortcutButton.Size = new Size(120, 23);
+        stopShortcutButton.TabIndex = 9;
+        stopShortcutButton.Text = "Change: F10";
+        stopShortcutButton.UseVisualStyleBackColor = true;
+        stopShortcutButton.Click += stopShortcutButton_Click;
         //
         // alwaysOnTopCheckBox
         //
@@ -230,7 +230,7 @@ public partial class MainForm
         alwaysOnTopCheckBox.Location = new Point(12, 336);
         alwaysOnTopCheckBox.Name = "alwaysOnTopCheckBox";
         alwaysOnTopCheckBox.Size = new Size(101, 19);
-        alwaysOnTopCheckBox.TabIndex = 16;
+        alwaysOnTopCheckBox.TabIndex = 10;
         alwaysOnTopCheckBox.Text = "Always on top";
         alwaysOnTopCheckBox.UseVisualStyleBackColor = true;
         alwaysOnTopCheckBox.CheckedChanged += alwaysOnTopCheckBox_CheckedChanged;
@@ -253,8 +253,8 @@ public partial class MainForm
         ClientSize = new Size(484, 436);
         Controls.Add(statusLabel);
         Controls.Add(alwaysOnTopCheckBox);
-        Controls.Add(stopShortcutComboBox);
-        Controls.Add(typeShortcutComboBox);
+        Controls.Add(stopShortcutButton);
+        Controls.Add(typeShortcutButton);
         Controls.Add(stopShortcutLabel);
         Controls.Add(typeShortcutLabel);
         Controls.Add(hotKeyLabel);
@@ -262,7 +262,7 @@ public partial class MainForm
         Controls.Add(interkeyDelayLabel);
         Controls.Add(startDelayNumeric);
         Controls.Add(startDelayLabel);
-        Controls.Add(hotKeyComboBox);
+        Controls.Add(emergencyShortcutButton);
         Controls.Add(hotKeyEnabledCheckBox);
         Controls.Add(typeEnterCheckBox);
         Controls.Add(stopButton);
