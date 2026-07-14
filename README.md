@@ -4,6 +4,9 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 
 [中文说明](README.zh-CN.md)
 
+> [!IMPORTANT]
+> Extract the entire ZIP archive to a normal folder before launching Type Clipboard. Running `TypeClipboard.exe` directly from an archive viewer can use a temporary extraction directory and cause repeated **Auto loaded** messages, window flicker, or cache and settings conflicts.
+
 ## Features
 
 - Loads Windows clipboard text into an editable preview box.
@@ -29,16 +32,21 @@ Type Clipboard is a small Windows desktop app that simulates typing clipboard te
 
 ## Installation
 
-Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release, extract it, and run `TypeClipboard.exe`.
+1. Download `TypeClipboard-Portable-vX.Y.Z.zip` from the latest GitHub Release.
+2. Right-click the ZIP and select **Extract All**, or extract the complete archive with your preferred archive tool.
+3. Open the extracted folder and run `TypeClipboard.exe` from that folder.
+
+Always launch the extracted copy. Archive preview tools may start the EXE from a temporary directory, which can break stable access to the app's cache and settings.
 
 ## Usage
 
-1. Copy text on the local PC.
-2. Open **Type Clipboard**. The preview updates automatically.
-3. Place the caret in the target RDP, server, or app field, then click **Type**. The app restores that target automatically. You can also press the global Type shortcut in the target window; the default is F9.
-4. The app waits for the configured start delay after restoring the target, then types at the currently focused input position.
-5. Press the Emergency shortcut, the Stop shortcut, or click **Stop** to interrupt. The defaults are F8 and F10.
-6. Open **Type History** or press Ctrl+H to reuse previously typed text.
+1. Confirm that `TypeClipboard.exe` is running from a fully extracted folder.
+2. Copy text on the local PC.
+3. Open **Type Clipboard**. The preview updates automatically.
+4. Place the caret in the target RDP, server, or app field, then click **Type**. The app restores that target automatically. You can also press the global Type shortcut in the target window; the default is F9.
+5. The app waits for the configured start delay after restoring the target, then types at the currently focused input position.
+6. Press the Emergency shortcut, the Stop shortcut, or click **Stop** to interrupt. The defaults are F8 and F10.
+7. Open **Type History** or press Ctrl+H to reuse previously typed text.
 
 ## Controls
 
@@ -75,6 +83,15 @@ The three custom shortcuts, Emergency enablement, always-on-top, history enablem
 
 Type History is stored in `%APPDATA%\TypeClipboard\type-history.json`. History recording uses only the app's **Type** action; clipboard auto-refresh does not create history entries. The history file contains typed text in plain JSON, so use **Pause History**, disable **Save Type History**, or delete sensitive entries when working with passwords, API keys, tokens, or private commands.
 
+## Repeated Auto Loaded Messages or Flicker
+
+Repeated **Auto loaded** messages, rapid status updates, or visible window flicker can occur when the EXE is launched directly from inside the ZIP archive.
+
+1. Close every running Type Clipboard instance.
+2. Extract the complete ZIP to a permanent folder such as `C:\Tools\TypeClipboard`.
+3. Launch `TypeClipboard.exe` from the extracted folder.
+4. Keep future updates in their own fully extracted folders.
+
 ## Build From Source
 
 Requirements:
@@ -105,6 +122,7 @@ The script reads the default version from the project file. To build a specific 
 
 ## Known Runtime Boundaries
 
+- Running directly from a ZIP archive or archive preview window is unsupported because temporary extraction can cause cache, settings, and repeated clipboard-status conflicts.
 - Apps running as administrator may require Type Clipboard to run with the same integrity level.
 - Some remote consoles and specialized apps may handle synthetic input differently.
 - Stop cancellation is checked before each character and after each delay. A key event already sent to Windows cannot be recalled.
