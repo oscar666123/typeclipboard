@@ -50,6 +50,13 @@ public partial class MainForm : Form
     private bool _isInitializingShortcuts;
     private bool _isTyping;
     private bool _isClosing;
+    private readonly TypeHistoryStore _historyStore = new();
+    private TypeHistoryPanel? _historyPanel;
+    private CheckBox? _saveHistoryCheckBox;
+    private NumericUpDown? _maximumHistoryNumeric;
+    private TableLayoutPanel? _mainLayout;
+    private int _mainLayoutPadding;
+    private int _collapsedClientWidth;
 
     public MainForm()
     {
@@ -101,6 +108,18 @@ public partial class MainForm : Form
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
+        if (keyData == (Keys.Control | Keys.H))
+        {
+            OpenHistory();
+            return true;
+        }
+
+        if (keyData == Keys.Escape && _historyPanel?.Visible == true && !IsTyping)
+        {
+            ToggleHistory(false);
+            return true;
+        }
+
         if (!IsTyping && MatchesShortcut(typeShortcutComboBox, keyData))
         {
             StartTypingFromShortcut();
@@ -129,12 +148,14 @@ public partial class MainForm : Form
         LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
     }
 
-    private void MainForm_Load(object? sender, EventArgs e)
+    private async void MainForm_Load(object? sender, EventArgs e)
     {
         _emergencyHotKeyManager = new HotKeyManager(Handle, EmergencyHotKeyId);
         _typeShortcutHotKeyManager = new HotKeyManager(Handle, TypeShortcutHotKeyId);
         _stopShortcutHotKeyManager = new HotKeyManager(Handle, StopShortcutHotKeyId);
         InitializeShortcutSelectors();
+        InitializeHistoryUi();
+        await LoadHistoryAsync();
         RegisterSelectedShortcutHotKeys();
         hotKeyComboBox.Items.AddRange(_hotKeyOptions);
         hotKeyComboBox.SelectedIndex = 0;
@@ -210,15 +231,15 @@ public partial class MainForm : Form
 
     private async void typeButton_Click(object? sender, EventArgs e)
     {
-        await StartTypingAsync();
+        await StartTypingAsync(clipboardTextBox.Text);
     }
 
     private void StartTypingFromShortcut()
     {
-        _ = StartTypingAsync();
+        _ = StartTypingAsync(clipboardTextBox.Text);
     }
 
-    private async Task StartTypingAsync()
+    private async Task StartTypingAsync(string text)
     {
         if (IsTyping)
         {
@@ -227,11 +248,18 @@ public partial class MainForm : Form
 
         LoadClipboardText("Auto loaded", forceReload: false, showErrors: false);
 
-        string text = clipboardTextBox.Text;
-        if (text.Length == 0)
+        if (string.IsNullOrWhiteSpace(text))
         {
             SetIdleStatus("Textbox is empty");
             return;
+        }
+
+        clipboardTextBox.Text = text;
+        TypeHistoryItem? historyItem = null;
+        if (_settings.SaveTypeHistory && _historyPanel?.IsPaused != true)
+        {
+            historyItem = _historyStore.AddOrReuse(text, _settings.MaximumHistoryItems);
+            await SaveHistoryAsync("History saved");
         }
 
         _typingCancellation?.Dispose();
@@ -283,6 +311,7 @@ public partial class MainForm : Form
             }
 
             SetIdleStatus("Completed");
+            await SetHistoryStatusAsync(historyItem, TypeHistoryStatus.Completed);
         }
         catch (OperationCanceledException)
         {
@@ -290,6 +319,7 @@ public partial class MainForm : Form
             {
                 SetIdleStatus("Stopped");
             }
+            await SetHistoryStatusAsync(historyItem, TypeHistoryStatus.Stopped);
         }
         catch (TargetWindowChangedException ex)
         {
@@ -297,6 +327,7 @@ public partial class MainForm : Form
             {
                 SetIdleStatus(ex.Message);
             }
+            await SetHistoryStatusAsync(historyItem, TypeHistoryStatus.Stopped);
         }
         catch (Exception ex)
         {
@@ -304,6 +335,7 @@ public partial class MainForm : Form
             {
                 SetIdleStatus($"Error: {ex.Message}");
             }
+            await SetHistoryStatusAsync(historyItem, TypeHistoryStatus.Failed);
         }
         finally
         {
@@ -408,6 +440,287 @@ public partial class MainForm : Form
         stopShortcutComboBox.SelectedItem = FindShortcut(_stopShortcutOptions, _settings.StopShortcutId);
 
         _isInitializingShortcuts = false;
+    }
+
+    private void InitializeHistoryUi()
+    {
+        _historyPanel = new TypeHistoryPanel
+        {
+            Dock = DockStyle.Right,
+            Visible = false,
+            Width = (int)Math.Round(330 * DeviceDpi / 96f)
+        };
+        _historyPanel.LoadRequested += LoadHistoryItem;
+        _historyPanel.TypeRequested += item => _ = StartTypingAsync(item.Content);
+        _historyPanel.CopyRequested += CopyHistoryItem;
+        _historyPanel.PinRequested += async item => { item.IsPinned = !item.IsPinned; await SaveHistoryAsync("History saved"); };
+        _historyPanel.DeleteRequested += DeleteHistoryItem;
+        _historyPanel.ClearRequested += ClearUnpinnedHistory;
+        _historyPanel.DeleteAllRequested += DeleteAllHistory;
+        _historyPanel.PauseChanged += paused => SetIdleStatus(paused ? "History paused" : "History resumed");
+        Controls.Add(_historyPanel);
+        _historyPanel.BringToFront();
+
+        Button historyButton = new() { Text = "Type History", Location = new Point(120, 332), Size = new Size(110, 27) };
+        historyButton.Click += (_, _) => ToggleHistory(_historyPanel?.Visible != true);
+
+        _saveHistoryCheckBox = new CheckBox { Text = "Save Type History", AutoSize = true, Checked = _settings.SaveTypeHistory, Location = new Point(241, 336) };
+        _saveHistoryCheckBox.CheckedChanged += (_, _) =>
+        {
+            _settings.SaveTypeHistory = _saveHistoryCheckBox.Checked;
+            SaveSettings(_settings.SaveTypeHistory ? "History saving enabled" : "History saving disabled");
+        };
+
+        _maximumHistoryNumeric = new NumericUpDown { Minimum = 20, Maximum = 1000, Value = Math.Clamp(_settings.MaximumHistoryItems, 20, 1000), Location = new Point(352, 364), Size = new Size(120, 23) };
+        Label maximumLabel = new() { Text = "Maximum history items", AutoSize = true, Location = new Point(213, 367) };
+        _maximumHistoryNumeric.ValueChanged += async (_, _) =>
+        {
+            _settings.MaximumHistoryItems = (int)_maximumHistoryNumeric.Value;
+            _historyStore.Trim(_settings.MaximumHistoryItems);
+            SaveSettings("History limit updated");
+            await SaveHistoryAsync("History saved");
+        };
+        ArrangeMainControls(historyButton, maximumLabel);
+        _collapsedClientWidth = ClientSize.Width;
+    }
+
+    private void ArrangeMainControls(Button historyButton, Label maximumLabel)
+    {
+        int Scale(int value) => (int)Math.Round(value * DeviceDpi / 96f);
+
+        _mainLayoutPadding = Scale(12);
+        TableLayoutPanel mainLayout = new()
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(_mainLayoutPadding),
+            ColumnCount = 1,
+            RowCount = 8
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(42)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(31)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(31)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(31)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(31)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(35)));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, Scale(28)));
+
+        clipboardTextBox.Dock = DockStyle.Fill;
+        clipboardTextBox.Margin = new Padding(0, 0, 0, Scale(8));
+        mainLayout.Controls.Add(clipboardTextBox, 0, 0);
+
+        TableLayoutPanel actions = CreateLayoutRow(3, [40, 30, 30]);
+        ConfigureFillButton(copyClipboardButton);
+        ConfigureFillButton(typeButton);
+        ConfigureFillButton(stopButton);
+        actions.Controls.Add(copyClipboardButton, 0, 0);
+        actions.Controls.Add(typeButton, 1, 0);
+        actions.Controls.Add(stopButton, 2, 0);
+        mainLayout.Controls.Add(actions, 0, 1);
+
+        TableLayoutPanel options = CreateLayoutRow(3, [30, 35, 35]);
+        ConfigureRowControl(typeEnterCheckBox);
+        ConfigureRowControl(alwaysOnTopCheckBox);
+        ConfigureRowControl(_saveHistoryCheckBox);
+        options.Controls.Add(typeEnterCheckBox, 0, 0);
+        options.Controls.Add(alwaysOnTopCheckBox, 1, 0);
+        options.Controls.Add(_saveHistoryCheckBox!, 2, 0);
+        mainLayout.Controls.Add(options, 0, 2);
+
+        TableLayoutPanel delays = CreateLayoutRow(4, [24, 26, 24, 26]);
+        ConfigureRowControl(startDelayLabel);
+        ConfigureRowControl(startDelayNumeric);
+        ConfigureRowControl(interkeyDelayLabel);
+        ConfigureRowControl(interkeyDelayNumeric);
+        delays.Controls.Add(startDelayLabel, 0, 0);
+        delays.Controls.Add(startDelayNumeric, 1, 0);
+        delays.Controls.Add(interkeyDelayLabel, 2, 0);
+        delays.Controls.Add(interkeyDelayNumeric, 3, 0);
+        mainLayout.Controls.Add(delays, 0, 3);
+
+        TableLayoutPanel emergency = CreateLayoutRow(3, [30, 35, 35]);
+        ConfigureRowControl(hotKeyEnabledCheckBox);
+        ConfigureRowControl(hotKeyLabel);
+        ConfigureRowControl(hotKeyComboBox);
+        emergency.Controls.Add(hotKeyEnabledCheckBox, 0, 0);
+        emergency.Controls.Add(hotKeyLabel, 1, 0);
+        emergency.Controls.Add(hotKeyComboBox, 2, 0);
+        mainLayout.Controls.Add(emergency, 0, 4);
+
+        TableLayoutPanel shortcuts = CreateLayoutRow(4, [24, 26, 24, 26]);
+        ConfigureRowControl(typeShortcutLabel);
+        ConfigureRowControl(typeShortcutComboBox);
+        ConfigureRowControl(stopShortcutLabel);
+        ConfigureRowControl(stopShortcutComboBox);
+        shortcuts.Controls.Add(typeShortcutLabel, 0, 0);
+        shortcuts.Controls.Add(typeShortcutComboBox, 1, 0);
+        shortcuts.Controls.Add(stopShortcutLabel, 2, 0);
+        shortcuts.Controls.Add(stopShortcutComboBox, 3, 0);
+        mainLayout.Controls.Add(shortcuts, 0, 5);
+
+        TableLayoutPanel historySettings = CreateLayoutRow(3, [30, 44, 26]);
+        ConfigureFillButton(historyButton);
+        ConfigureRowControl(maximumLabel);
+        ConfigureRowControl(_maximumHistoryNumeric);
+        historySettings.Controls.Add(historyButton, 0, 0);
+        historySettings.Controls.Add(maximumLabel, 1, 0);
+        historySettings.Controls.Add(_maximumHistoryNumeric!, 2, 0);
+        mainLayout.Controls.Add(historySettings, 0, 6);
+
+        statusLabel.Dock = DockStyle.Fill;
+        statusLabel.Margin = Padding.Empty;
+        mainLayout.Controls.Add(statusLabel, 0, 7);
+
+        Controls.Add(mainLayout);
+        _mainLayout = mainLayout;
+        mainLayout.BringToFront();
+        _historyPanel?.BringToFront();
+    }
+
+    private static TableLayoutPanel CreateLayoutRow(int columns, int[] percentages)
+    {
+        TableLayoutPanel layout = new()
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = columns,
+            RowCount = 1,
+            Margin = Padding.Empty
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        foreach (int percentage in percentages)
+        {
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, percentage));
+        }
+
+        return layout;
+    }
+
+    private static void ConfigureFillButton(Button button)
+    {
+        button.Dock = DockStyle.Fill;
+        button.Margin = new Padding(3);
+    }
+
+    private static void ConfigureRowControl(Control? control)
+    {
+        if (control is null) return;
+        control.Dock = DockStyle.Fill;
+        control.Margin = new Padding(3);
+    }
+
+    private async Task LoadHistoryAsync()
+    {
+        try
+        {
+            await _historyStore.LoadAsync();
+            _historyStore.Trim(_settings.MaximumHistoryItems);
+            RefreshHistory();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SetIdleStatus($"Failed to load history: {ex.Message}");
+        }
+    }
+
+    private async Task SetHistoryStatusAsync(TypeHistoryItem? item, TypeHistoryStatus status)
+    {
+        if (item is null) return;
+        item.Status = status;
+        await SaveHistoryAsync("History saved");
+    }
+
+    private async Task SaveHistoryAsync(string successStatus)
+    {
+        try
+        {
+            await _historyStore.SaveAsync();
+            RefreshHistory();
+            SetIdleStatus(successStatus);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SetIdleStatus($"Failed to save history: {ex.Message}");
+        }
+    }
+
+    private void RefreshHistory() => _historyPanel?.SetItems(_historyStore.Items);
+
+    private void LoadHistoryItem(TypeHistoryItem item)
+    {
+        clipboardTextBox.Text = item.Content;
+        clipboardTextBox.SelectionStart = clipboardTextBox.TextLength;
+        clipboardTextBox.Focus();
+        SetIdleStatus($"Loaded {item.Content.Length} characters");
+    }
+
+    private void CopyHistoryItem(TypeHistoryItem item)
+    {
+        try
+        {
+            Clipboard.SetText(item.Content);
+            SetIdleStatus("Copied to clipboard");
+        }
+        catch (Exception ex) when (ex is ExternalException or ThreadStateException or InvalidOperationException)
+        {
+            SetIdleStatus($"Failed to copy history: {ex.Message}");
+        }
+    }
+
+    private async void DeleteHistoryItem(TypeHistoryItem item)
+    {
+        if (MessageBox.Show("Delete this history item?", "Type History", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+        _historyStore.Items.Remove(item);
+        await SaveHistoryAsync("History item deleted");
+    }
+
+    private async void ClearUnpinnedHistory()
+    {
+        if (MessageBox.Show("Clear all unpinned history items? Pinned items will remain.", "Clear Type History", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+        _historyStore.Items.RemoveAll(item => !item.IsPinned);
+        await SaveHistoryAsync("History cleared");
+    }
+
+    private async void DeleteAllHistory()
+    {
+        if (MessageBox.Show("Permanently delete ALL Type History, including pinned items? This cannot be undone.", "Delete All Type History", MessageBoxButtons.YesNo, MessageBoxIcon.Stop) != DialogResult.Yes) return;
+        _historyStore.Items.Clear();
+        await SaveHistoryAsync("History cleared");
+    }
+
+    private void OpenHistory()
+    {
+        ToggleHistory(true);
+        _historyPanel?.FocusHistory();
+    }
+
+    private void ToggleHistory(bool visible)
+    {
+        if (_historyPanel is null) return;
+        if (_historyPanel.Visible == visible) return;
+
+        if (visible)
+        {
+            ClientSize = new Size(_collapsedClientWidth + _historyPanel.Width, ClientSize.Height);
+            if (_mainLayout is not null)
+            {
+                _mainLayout.Padding = new Padding(
+                    _mainLayoutPadding,
+                    _mainLayoutPadding,
+                    _historyPanel.Width + _mainLayoutPadding,
+                    _mainLayoutPadding);
+            }
+            _historyPanel.Visible = true;
+        }
+        else
+        {
+            _historyPanel.Visible = false;
+            if (_mainLayout is not null)
+            {
+                _mainLayout.Padding = new Padding(_mainLayoutPadding);
+            }
+            ClientSize = new Size(_collapsedClientWidth, ClientSize.Height);
+        }
     }
 
     private static ShortcutOption FindShortcut(ShortcutOption[] options, string selectedId)

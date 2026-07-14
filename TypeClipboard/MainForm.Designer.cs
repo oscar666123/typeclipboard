@@ -239,7 +239,7 @@ public partial class MainForm
         //
         statusLabel.AutoEllipsis = true;
         statusLabel.BorderStyle = BorderStyle.Fixed3D;
-        statusLabel.Location = new Point(12, 372);
+        statusLabel.Location = new Point(12, 400);
         statusLabel.Name = "statusLabel";
         statusLabel.Size = new Size(460, 24);
         statusLabel.TabIndex = 17;
@@ -250,7 +250,7 @@ public partial class MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(484, 408);
+        ClientSize = new Size(484, 436);
         Controls.Add(statusLabel);
         Controls.Add(alwaysOnTopCheckBox);
         Controls.Add(stopShortcutComboBox);
